@@ -7,16 +7,21 @@
 #include <random>
 #include <algorithm>
 
+#define INF 1000000000
+
 using namespace std;
 
+// 寮生を表すクラス
 class Student {
 public:
-    string cur_room;
-    string number;
-    string name;
-    vector<function<int(string)>> satis;
+    string cur_room; // 現在の部屋
+    string number;   // 学籍番号
+    string name;     // 名前
+    vector<function<int(string)>> satis; // 満足度の評価関数
 
-    Student (string cur_room, string number, string name, vector<function<int(string)>> satis) {
+    Student() { }
+
+    Student(string cur_room, string number, string name, vector<function<int(string)>> satis) {
         this->cur_room = cur_room;
         this->number = number;
         this->name = name;
@@ -24,10 +29,31 @@ public:
     }
 };
 
-int satis_sum(vector<tuple<string, Student>> rooms) {
+// 部屋を表すクラス
+class Room {
+public:
+    string number;   // 部屋番号
+    Student student; // 寮生
+
+    Room(string number, Student student) {
+        this->number = number;
+        this->student = student;
+    }
+
+    // 寮生の満足度
+    int satisfaction() {
+        int max_sati = -INF;
+        for (auto sati : this->student.satis)
+            max_sati = max(max_sati, sati(this->number));
+        return max_sati;
+    }
+};
+
+// 満足度の総和を計算
+int satis_sum(vector<Room> rooms) {
     int sum = 0;
     for (auto room : rooms)
-        sum += get<1>(room).satis[0](room);
+        sum += room.satisfaction();
     return sum;
 }
 
@@ -74,14 +100,14 @@ int main() {
         }),
     };
 
-    vector<tuple<string, Student>> rooms;
-
-    for (int i = 0; i < students.size(); i++)
-        rooms.push_back(make_tuple(room_list[i], students[i]));
-
     random_device seed_gen;
     mt19937 engine(seed_gen());
-    shuffle(rooms.begin(), rooms.end(), engine);
+    shuffle(students.begin(), students.end(), engine);
+
+    vector<Room> rooms;
+
+    for (int i = 0; i < students.size(); i++)
+        rooms.push_back(Room(room_list[i], students[i]));
 
     for (int k = 0; k < 10; k++) {
         int satis_max = satis_sum(rooms);
@@ -90,7 +116,7 @@ int main() {
 
         for (int i = 0; i < room_list.size() - 1; i++) {
             for (int j = i + 1; j < room_list.size(); j++) {
-                swap(rooms[room_list[i]], rooms[room_list[j]]);
+                swap(rooms[i].student, rooms[j].student);
 
                 if (satis_sum(rooms) > satis_max) {
                     satis_max = satis_sum(rooms);
@@ -98,17 +124,17 @@ int main() {
                     max_j = j;
                 }
 
-                swap(rooms[room_list[j]], rooms[room_list[i]]);
+                swap(rooms[j].student, rooms[i].student);
             }
         }
 
-        swap(rooms[room_list[max_i]], rooms[room_list[max_j]]);
+        swap(rooms[max_i].student, rooms[max_j].student);
         cout << satis_max << endl;
     }
 
     cout << endl;
-    for (auto [room, student] : rooms)
-        cout << room << "号室：" << student.number << endl;
+    for (auto room : rooms)
+        cout << room.number << "号室：" << room.student.number << endl;
 
     return 0;
 }
