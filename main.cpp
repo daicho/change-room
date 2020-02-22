@@ -41,15 +41,13 @@ public:
 // 寮生を表すクラス
 class Student {
 public:
-    string cur_room; // 現在の部屋
-    string number;   // 学籍番号
-    string name;     // 名前
+    string number; // 学籍番号
+    string name;   // 名前
     function<int(Room)> satis; // 満足度の評価関数
 
     Student() { }
 
-    Student(string cur_room, string number, string name, function<int(Room)> satis) {
-        this->cur_room = cur_room;
+    Student(string number, string name, function<int(Room)> satis) {
         this->number = number;
         this->name = name;
         this->satis = satis;
@@ -106,17 +104,17 @@ vector<string> split(string& input, char delimiter) {
 }
 
 // 対象の号館か
-bool satis_building(Room room, char building) {
+bool matchBuilding(Room room, char building) {
     return room.number[0] == building;
 }
 
 // 対象の階か
-bool satis_floor(Room room, char building, char floor) {
+bool matchFloor(Room room, char building, char floor) {
     return (room.number[0] == building && room.number[1] == floor);
 }
 
 // 対象の部屋か
-bool satis_room(Room room, string room_number) {
+bool matchRoom(Room room, string room_number) {
     return room.number == room_number;
 }
 
@@ -148,7 +146,7 @@ int main() {
         vector<string> strs = split(line, ',');
 
         // 寮生の評価関数を作成
-        students.push_back(Student(strs[0], strs[1], strs[2], [=](Room room) -> int {
+        students.push_back(Student(strs[1], strs[2], [=](Room room) -> int {
             int satis_value = 0;
             string request;
 
@@ -156,15 +154,35 @@ int main() {
             for (int i = 4; i >= 0; i--) {
                 request = strs[i + 3];
 
-                if ((request[0] == 'B' && satis_building(room, request[1])) ||
-                    (request[0] == 'F' && satis_floor(room, request[1], request[3])) ||
-                    (request[0] == 'R' && satis_room(room, request.substr(1, 4))))
+                if ((request[0] == 'B' && matchBuilding(room, request[1])) ||
+                    (request[0] == 'F' && matchFloor(room, request[1], request[3])) ||
+                    (request[0] == 'R' && matchRoom(room, request.substr(1, 4))))
                     satis_value = 5 - i;
             }
 
+            // 学年
+            switch (strs[1][1]) {
+                case '5':
+                case '6':
+                case '7':
+                    if (!matchFloor(room, '1', '2') && !matchFloor(room, '1', '3') && !matchBuilding(room, '3') && !matchBuilding(room, '5'))
+                        satis_value -= 10000;
+                    break;
+
+                case '8':
+                    if (!matchBuilding(room, '1') && !matchFloor(room, '2', '1') && !matchFloor(room, '2', '3'))
+                        satis_value -= 10000;
+                    break;
+
+                case '9':
+                    if (!matchBuilding(room, '1') && !matchBuilding(room, '2') && !matchBuilding(room, '4'))
+                        satis_value -= 10000;
+                    break;
+            }
+
             // 人数
-            if (room.people == stoi(strs[8]))
-                satis_value += 10000;
+            if (room.people != stoi(strs[8]))
+                satis_value -= 10000;
 
             // その他希望
             for (int i = 0; i < 9; i++) {
@@ -183,9 +201,9 @@ int main() {
             // 除外
             request = strs[20];
 
-            if ((request[0] == 'B' && satis_building(room, request[1])) ||
-                (request[0] == 'F' && satis_floor(room, request[1], request[3])) ||
-                (request[0] == 'R' && satis_room(room, request.substr(1, 4))))
+            if ((request[0] == 'B' && matchBuilding(room, request[1])) ||
+                (request[0] == 'F' && matchFloor(room, request[1], request[3])) ||
+                (request[0] == 'R' && matchRoom(room, request.substr(1, 4))))
                 satis_value -= 1;
 
             return satis_value;
@@ -201,7 +219,7 @@ int main() {
     vector<Resident> residents;
 
     for (auto room : rooms)
-        residents.push_back(Resident(room, Student("0000", "00000", "", [](Room room) { return 0; })));
+        residents.push_back(Resident(room, Student("00000", "", [](Room room) { return 0; })));
 
     for (int i = 0; i < students.size(); i++)
         residents[i].student = students[i];
@@ -213,7 +231,7 @@ int main() {
     for (auto resident : residents)
         satis_sum += resident.satis();
 
-    while (satis_sum < 1510680) {
+    while (satis_sum < 675) {
         int i, j;
         uniform_int_distribution<int> dist(0, residents.size() - 1);
 
