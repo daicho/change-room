@@ -166,23 +166,23 @@ int main() {
                 case '6':
                 case '7':
                     if (!matchFloor(room, '1', '2') && !matchFloor(room, '1', '3') && !matchBuilding(room, '3') && !matchBuilding(room, '5'))
-                        satis_value -= 10000;
+                        satis_value -= 1000;
                     break;
 
                 case '8':
                     if (!matchBuilding(room, '1') && !matchFloor(room, '2', '1') && !matchFloor(room, '2', '3'))
-                        satis_value -= 10000;
+                        satis_value -= 1000;
                     break;
 
                 case '9':
                     if (!matchBuilding(room, '1') && !matchBuilding(room, '2') && !matchBuilding(room, '4'))
-                        satis_value -= 10000;
+                        satis_value -= 1000;
                     break;
             }
 
             // 人数
             if (room.people != stoi(strs[8]))
-                satis_value -= 10000;
+                satis_value -= 1000;
 
             // その他希望
             for (int i = 0; i < 9; i++) {
@@ -231,7 +231,7 @@ int main() {
     for (auto resident : residents)
         satis_sum += resident.satis();
 
-    while (satis_sum < 675) {
+    while (satis_sum < 662) {
         int i, j;
         uniform_int_distribution<int> dist(0, residents.size() - 1);
 
