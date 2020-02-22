@@ -3,92 +3,32 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <tuple>
-#include <map>
-#include <functional>
 #include <random>
 #include <algorithm>
+#include <functional>
+#include <cstdlib>
 
 using namespace std;
 
-// 寮生を表すクラス
-class Student {
-public:
-    string cur_room; // 現在の部屋
-    string number;   // 学籍番号
-    string name;     // 名前
-    vector<function<int(string)>> satis; // 満足度の評価関数
-
-    Student() { }
-
-    Student(string cur_room, string number, string name, vector<function<int(string)>> satis) {
-        this->cur_room = cur_room;
-        this->number = number;
-        this->name = name;
-        this->satis = satis;
-    }
-
-    bool operator<(const Student &other) const {
-        return this->number < other.number;
-    };
-
-    bool operator>(const Student &other) const {
-        return this->number > other.number;
-    };
-};
-
+/*---------- クラス定義 ----------*/
 // 部屋の情報
-class RoomInfo {
-public:
-    string number;
-    // int yoyaku;
-    // int people;
-    // int north;
-    // int south;
-    // int east;
-    // int entrance;
-    // int corner;
-    // int washing;
-    // int toilet;
-    // int stairs;
-    // int veranda;
-
-    RoomInfo() { }
-
-    RoomInfo(string number) {
-        this->number = number;
-    }
-
-    bool operator<(const RoomInfo &other) const {
-        return this->number < other.number;
-    };
-
-    bool operator>(const RoomInfo &other) const {
-        return this->number > other.number;
-    };
-};
-
-// 部屋を表すクラス
 class Room {
 public:
-    string number;   // 部屋番号
-    Student student; // 寮生
+    string number;  // 部屋番号
+    int people;     // 部屋の人数
+
+    // 0:北側, 1:南側, 2:東側, 3:角部屋, 4:玄関の近く, 5:洗濯室の近く, 6:トイレの近く, 7:階段の近く, 8:ベランダ有
+    vector<bool> infos;
 
     Room() { }
 
-    Room(string number, Student student) {
+    Room(string number, int people, vector<bool> infos) {
         this->number = number;
-        this->student = student;
+        this->people = people;
+        this->infos = infos;
     }
 
-    // 寮生の満足度
-    int satisfaction() {
-        int sum = 0;
-        for (auto sati : this->student.satis)
-            sum += sati(this->number);
-        return sum;
-    }
-
+    // 比較演算子
     bool operator<(const Room &other) const {
         return this->number < other.number;
     };
@@ -98,49 +38,106 @@ public:
     };
 };
 
+// 寮生を表すクラス
+class Student {
+public:
+    string cur_room; // 現在の部屋
+    string number;   // 学籍番号
+    string name;     // 名前
+    function<int(Room)> satis; // 満足度の評価関数
+
+    Student() { }
+
+    Student(string cur_room, string number, string name, function<int(Room)> satis) {
+        this->cur_room = cur_room;
+        this->number = number;
+        this->name = name;
+        this->satis = satis;
+    }
+
+    // 比較演算子
+    bool operator<(const Student &other) const {
+        return this->number < other.number;
+    };
+
+    bool operator>(const Student &other) const {
+        return this->number > other.number;
+    };
+};
+
+// 住人を表すクラス
+class Resident {
+public:
+    Room room;       // 部屋の情報
+    Student student; // 寮生
+
+    Resident() { }
+
+    Resident(Room room, Student student) {
+        this->room = room;
+        this->student = student;
+    }
+
+    // 寮生の満足度
+    int satis() {
+        return this->student.satis(this->room);
+    }
+
+    // 比較演算子
+    bool operator<(const Resident &other) const {
+        return this->room.number < other.room.number;
+    };
+
+    bool operator>(const Resident &other) const {
+        return this->room.number > other.room.number;
+    };
+};
+
+/*---------- 関数定義 ----------*/
 // 文字列の分割
-vector<string> split(string& input, char delimiter)
-{
+vector<string> split(string& input, char delimiter) {
     istringstream iss(input);
     string field;
     vector<string> result;
+
     while (getline(iss, field, delimiter))
         result.push_back(field);
     return result;
 }
 
 // 対象の号館か
-bool satis_building(string room, char building) {
-    return room[0] == building;
+bool satis_building(Room room, char building) {
+    return room.number[0] == building;
 }
 
 // 対象の階か
-bool satis_floor(string room, char building, char floor) {
-    return (room[0] == building && room[1] == floor);
+bool satis_floor(Room room, char building, char floor) {
+    return (room.number[0] == building && room.number[1] == floor);
 }
 
 // 対象の部屋か
-bool satis_room(string room, string room_number) {
-    return room == room_number;
+bool satis_room(Room room, string room_number) {
+    return room.number == room_number;
 }
 
-// 満足度の総和を計算
-int satis_sum(vector<Room> rooms) {
-    int sum = 0;
-    for (auto room : rooms)
-        sum += room.satisfaction();
-    return sum;
-}
-
+/*---------- メイン関数 ----------*/
 int main() {
     // 部屋一覧を読み込み
-    vector<RoomInfo> room_infos;
+    vector<Room> rooms;
     ifstream room_stream("rooms.csv");
     string line;
 
     getline(room_stream, line);
-    while (getline(room_stream, line))
-        room_infos.push_back(RoomInfo(split(line, ',')[0]));
+    while (getline(room_stream, line)) {
+        vector<string> strs = split(line, ',');
+        vector<bool> infos;
+
+        for (int i = 0; i < 9; i++)
+            infos.push_back(strs[i + 3] != "0");
+
+        if (strs[1] == "0")
+            rooms.push_back(Room(strs[0], stoi(strs[2]), infos));
+    }
 
     // 寮生希望一覧を読み込み
     vector<Student> students;
@@ -149,74 +146,94 @@ int main() {
     getline(student_stream, line);
     while (getline(student_stream, line)) {
         vector<string> strs = split(line, ',');
-        vector<function<int(string)>> satis;
 
-        // 第1希望～第5希望
-        for (int i = 0; i < 5; i++) {
-            string request = strs[i + 3];
+        // 寮生の評価関数を作成
+        students.push_back(Student(strs[0], strs[1], strs[2], [=](Room room) -> int {
+            int satis_value = 0;
+            string request;
 
-            switch (request[0]) {
-                // 号館希望
-                case 'B':
-                    satis.push_back([=](string room) -> int { return satis_building(room, request[1]) ? 5 - i : 0; });
-                    break;
+            // 第1希望～第5希望
+            for (int i = 4; i >= 0; i--) {
+                request = strs[i + 3];
 
-                // 階希望
-                case 'F':
-                    satis.push_back([=](string room) -> int { return satis_floor(room, request[1], request[3]) ? 5 - i : 0; });
-                    break;
-
-                // 部屋希望
-                case 'R':
-                    satis.push_back([=](string room) -> int { return satis_room(room, request.substr(1, 4)) ? 5 - i : 0; });
-                    break;
+                if ((request[0] == 'B' && satis_building(room, request[1])) ||
+                    (request[0] == 'F' && satis_floor(room, request[1], request[3])) ||
+                    (request[0] == 'R' && satis_room(room, request.substr(1, 4))))
+                    satis_value = 5 - i;
             }
-        }
 
-        students.push_back(Student(strs[0], strs[1], strs[2], satis));
+            // その他希望
+            for (int i = 0; i < 9; i++) {
+                if (strs[i + 8] != "" && room.infos[i])
+                    satis_value += stoi(strs[i + 8]);
+            }
+
+            // 以上
+            if (strs[17] != "" && room.number[1] >= stoi(strs[17]))
+                satis_value += 1;
+
+            // 以下
+            if (strs[18] != "" && room.number[1] <= stoi(strs[18]))
+                satis_value += 1;
+
+            // 除外
+            request = strs[19];
+
+            if ((request[0] == 'B' && satis_building(room, request[1])) ||
+                (request[0] == 'F' && satis_floor(room, request[1], request[3])) ||
+                (request[0] == 'R' && satis_room(room, request.substr(1, 4))))
+                satis_value -= 1;
+
+            return satis_value;
+        }));
     }
 
     // 部屋をシャッフル
-    random_device seed_gen;
-    mt19937 engine(seed_gen());
-    shuffle(room_infos.begin(), room_infos.end(), engine);
+    random_device rnd;
+    mt19937 mt(rnd());
+    shuffle(rooms.begin(), rooms.end(), mt);
 
-    vector<Room> rooms;
+    // 住人
+    vector<Resident> residents;
 
-    for (auto room_info : room_infos)
-        rooms.push_back(Room(room_info.number, Student("0000", "00000", "", {})));
+    for (auto room : rooms)
+        residents.push_back(Resident(room, Student("0000", "00000", "", [](Room room) { return 0; })));
 
     for (int i = 0; i < students.size(); i++)
-        rooms[i].student = students[i];
+        residents[i].student = students[i];
 
-    sort(rooms.begin(), rooms.end());
+    sort(residents.begin(), residents.end());
 
-    // for (int k = 0; k < 10; k++) {
-        int satis_max = satis_sum(rooms);
-        int max_i = 0;
-        int max_j = 0;
+    // 満足度の総和を計算
+    int satis_sum = 0;
+    for (auto resident : residents)
+        satis_sum += resident.satis();
 
-        for (int i = 0; i < room_infos.size() - 1; i++) {
-            for (int j = i + 1; j < room_infos.size(); j++) {
-                swap(rooms[i].student, rooms[j].student);
+    while (satis_sum < 802) {
+        int i, j;
+        uniform_int_distribution<int> dist(0, residents.size() - 1);
 
-                if (satis_sum(rooms) > satis_max) {
-                    satis_max = satis_sum(rooms);
-                    max_i = i;
-                    max_j = j;
-                }
+        // 入れ替えたときに満足度の総和が増大するなら入れ替える
+        while (true) {
+            int i = dist(mt);
+            int j = dist(mt);
 
-                swap(rooms[j].student, rooms[i].student);
+            int src_satis = residents[i].satis() + residents[j].satis();
+            int dst_satis = residents[i].student.satis(residents[j].room) + residents[j].student.satis(residents[i].room);
+
+            if (dst_satis >= src_satis) {
+                satis_sum += dst_satis - src_satis;
+                swap(residents[i].student, residents[j].student);
+                break;
             }
         }
 
-        swap(rooms[max_i].student, rooms[max_j].student);
-        cout << "幸福度 : " << satis_max << endl;
-    // }
+        cout << "満足度 : " << satis_sum << endl;
+    }
 
     cout << endl;
-    for (auto room : rooms)
-        cout << room.number << "号室：" << room.student.number << endl;
+    for (auto resident : residents)
+        cout << resident.room.number << "号室：" << resident.student.number << " (" << resident.satis() << ")" << endl;
 
     return 0;
 }
