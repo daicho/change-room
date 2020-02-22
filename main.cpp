@@ -162,22 +162,26 @@ int main() {
                     satis_value = 5 - i;
             }
 
+            // 人数
+            if (room.people == stoi(strs[8]))
+                satis_value += 10000;
+
             // その他希望
             for (int i = 0; i < 9; i++) {
-                if (strs[i + 8] != "" && room.infos[i])
-                    satis_value += stoi(strs[i + 8]);
+                if (strs[i + 9] != "" && room.infos[i])
+                    satis_value += stoi(strs[i + 9]);
             }
 
             // 以上
-            if (strs[17] != "" && room.number[1] >= stoi(strs[17]))
+            if (strs[18] != "" && room.number[1] >= stoi(strs[18]))
                 satis_value += 1;
 
             // 以下
-            if (strs[18] != "" && room.number[1] <= stoi(strs[18]))
+            if (strs[19] != "" && room.number[1] <= stoi(strs[19]))
                 satis_value += 1;
 
             // 除外
-            request = strs[19];
+            request = strs[20];
 
             if ((request[0] == 'B' && satis_building(room, request[1])) ||
                 (request[0] == 'F' && satis_floor(room, request[1], request[3])) ||
@@ -209,7 +213,7 @@ int main() {
     for (auto resident : residents)
         satis_sum += resident.satis();
 
-    while (satis_sum < 802) {
+    while (satis_sum < 1510680) {
         int i, j;
         uniform_int_distribution<int> dist(0, residents.size() - 1);
 
