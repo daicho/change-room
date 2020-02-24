@@ -41,14 +41,12 @@ public:
 class Student {
 public:
     string number; // 学籍番号
-    string name;   // 名前
     function<int(Room)> satis; // 満足度の評価関数
 
     Student() { }
 
-    Student(string number, string name, function<int(Room)> satis) {
+    Student(string number, function<int(Room)> satis) {
         this->number = number;
-        this->name = name;
         this->satis = satis;
     }
 
@@ -168,37 +166,39 @@ int main() {
         vector<string> strs = split(line, ',');
 
         // 満足度の評価関数を作成
-        Student student = Student(strs[0], strs[1], [=](Room room) -> int {
+        Student student = Student(strs[0], [=](Room room) -> int {
             int satis_value = 0;
 
             // 第1希望～第5希望
-            for (int i = 4; i >= 0; i--) {
-                if (matchRequest(room, strs[i + 5]))
+            for (int i = 0; i < 5; i++) {
+                if (matchRequest(room, strs[i + 4])) {
                     satis_value = 5 - i;
+                    break;
+                }
             }
 
             // その他希望
             for (int i = 0; i < 9; i++) {
-                if (strs[i + 10] != "" && room.infos[i])
-                    satis_value += stoi(strs[i + 10]);
+                if (strs[i + 9] != "" && room.infos[i])
+                    satis_value += stoi(strs[i + 9]);
             }
 
             // 以上
-            if (strs[19] != "" && room.number[1] >= stoi(strs[19]))
+            if (strs[18] != "" && room.number[1] >= stoi(strs[18]))
                 satis_value += 5;
 
             // 以下
-            if (strs[20] != "" && room.number[1] <= stoi(strs[20]))
+            if (strs[19] != "" && room.number[1] <= stoi(strs[19]))
                 satis_value += 5;
 
             // 除外
-            if (matchRequest(room, strs[21]))
+            if (matchRequest(room, strs[20]))
                 satis_value -= 5;
 
             // 確定
-            if (strs[4] != "") {
-                if (matchRequest(room, strs[4]))
-                    return 0;
+            if (strs[3] != "") {
+                if (matchRequest(room, strs[3]))
+                    return satis_value;
                 else
                     satis_value -= 4000;
             }
@@ -224,7 +224,7 @@ int main() {
             }
 
             // 人数
-            if (room.people_num != stoi(strs[2]))
+            if (room.people_num != stoi(strs[1]))
                 satis_value -= 2000;
 
             return satis_value;
@@ -233,10 +233,10 @@ int main() {
         // ペア指定があったら同じ部屋に
         bool found = false;
 
-        if (strs[3] != "") {
+        if (strs[2] != "") {
             for (auto& resident : residents) {
                 for (auto student : resident.students) {
-                    if (strs[3] == student.number) {
+                    if (strs[2] == student.number) {
                         found = true;
                         break;
                     }
