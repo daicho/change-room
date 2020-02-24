@@ -6,7 +6,6 @@
 #include <random>
 #include <algorithm>
 #include <functional>
-#include <cstdlib>
 
 using namespace std;
 
@@ -14,17 +13,17 @@ using namespace std;
 // 部屋の情報
 class Room {
 public:
-    string number; // 部屋番号
-    int people;    // 部屋の人数
+    string number;  // 部屋番号
+    int people_num; // 部屋の人数
 
     // 0:北側, 1:南側, 2:東側, 3:角部屋, 4:玄関の近く, 5:洗濯室の近く, 6:トイレの近く, 7:階段の近く, 8:ベランダ有
     vector<bool> infos;
 
     Room() { }
 
-    Room(string number, int people, vector<bool> infos) {
+    Room(string number, int people_num, vector<bool> infos) {
         this->number = number;
-        this->people = people;
+        this->people_num = people_num;
         this->infos = infos;
     }
 
@@ -97,11 +96,11 @@ public:
 /*---------- 関数定義 ----------*/
 // 文字列の分割
 vector<string> split(string& input, char delimiter) {
-    istringstream iss(input);
+    istringstream string_stream(input);
     string field;
     vector<string> result;
 
-    while (getline(iss, field, delimiter))
+    while (getline(string_stream, field, delimiter))
         result.push_back(field);
     return result;
 }
@@ -132,11 +131,11 @@ bool matchRequest(Room room, string request) {
 int main() {
     // 部屋一覧を読み込み
     vector<Room> rooms;
-    ifstream room_stream("rooms.csv");
+    ifstream rooms_stream("rooms.csv");
     string line;
 
-    getline(room_stream, line);
-    while (getline(room_stream, line)) {
+    getline(rooms_stream, line);
+    while (getline(rooms_stream, line)) {
         vector<string> strs = split(line, ',');
         vector<bool> infos;
 
@@ -147,7 +146,7 @@ int main() {
             rooms.push_back(Room(strs[0], stoi(strs[2]), infos));
     }
 
-    room_stream.close();
+    rooms_stream.close();
 
     // 部屋をシャッフル
     random_device rnd;
@@ -156,7 +155,7 @@ int main() {
 
     // 住人
     vector<Resident> residents;
-    ifstream student_stream("students.csv");
+    ifstream students_stream("students.csv");
 
     for (auto room : rooms)
         residents.push_back(Resident(room, { }));
@@ -164,8 +163,8 @@ int main() {
     int i = 0;
 
     // 寮生希望一覧を読み込み
-    getline(student_stream, line);
-    while (getline(student_stream, line)) {
+    getline(students_stream, line);
+    while (getline(students_stream, line)) {
         vector<string> strs = split(line, ',');
 
         // 満足度の評価関数を作成
@@ -186,15 +185,15 @@ int main() {
 
             // 以上
             if (strs[19] != "" && room.number[1] >= stoi(strs[19]))
-                satis_value += 1;
+                satis_value += 5;
 
             // 以下
             if (strs[20] != "" && room.number[1] <= stoi(strs[20]))
-                satis_value += 1;
+                satis_value += 5;
 
             // 除外
             if (matchRequest(room, strs[21]))
-                satis_value -= 1;
+                satis_value -= 5;
 
             // 確定
             if (strs[4] != "") {
@@ -225,7 +224,7 @@ int main() {
             }
 
             // 人数
-            if (room.people != stoi(strs[2]))
+            if (room.people_num != stoi(strs[2]))
                 satis_value -= 2000;
 
             return satis_value;
@@ -256,7 +255,7 @@ int main() {
         }
     }
 
-    student_stream.close();
+    students_stream.close();
 
     sort(residents.begin(), residents.end());
 
@@ -265,7 +264,7 @@ int main() {
     for (auto resident : residents)
         satis_sum += resident.satis();
 
-    // ファイルを作成
+    // 継続判定用ファイルを作成
     ofstream("continue");
 
     while (ifstream("continue").is_open()) {
@@ -287,13 +286,18 @@ int main() {
             cout << "満足度 : " << satis_sum << endl;
     }
 
-    cout << endl;
+    // 結果を出力
+    ofstream residents_stream("residents.csv");
+    residents_stream << "部屋番号,学籍番号1,学籍番号2" << endl;
+
     for (auto resident : residents) {
-        cout << resident.room.number << "号室 : ";
+        residents_stream << resident.room.number;
         for (auto student : resident.students)
-            cout << student.number << " (" << student.satis(resident.room) << "), ";
-        cout << endl;
+            residents_stream << "," << student.number;
+        residents_stream << endl;
     }
+
+    residents_stream.close();
 
     return 0;
 }
