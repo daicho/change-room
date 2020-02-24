@@ -14,8 +14,8 @@ using namespace std;
 // 部屋の情報
 class Room {
 public:
-    string number;  // 部屋番号
-    int people;     // 部屋の人数
+    string number; // 部屋番号
+    int people;    // 部屋の人数
 
     // 0:北側, 1:南側, 2:東側, 3:角部屋, 4:玄関の近く, 5:洗濯室の近く, 6:トイレの近く, 7:階段の近く, 8:ベランダ有
     vector<bool> infos;
@@ -66,19 +66,22 @@ public:
 // 住人を表すクラス
 class Resident {
 public:
-    Room room;       // 部屋の情報
-    Student student; // 寮生
+    Room room; // 部屋の情報
+    vector<Student> students; // 寮生
 
     Resident() { }
 
-    Resident(Room room, Student student) {
+    Resident(Room room, vector<Student> students) {
         this->room = room;
-        this->student = student;
+        this->students = students;
     }
 
     // 寮生の満足度
     int satis() {
-        return this->student.satis(this->room);
+        int sum = 0;
+        for (auto student : this->students)
+            sum += student.satis(this->room);
+        return sum;
     }
 
     // 比較演算子
@@ -120,10 +123,9 @@ bool matchRoom(Room room, string room_number) {
 
 // 文字列が表す部屋か
 bool matchRequest(Room room, string request) {
-    return false;
-    // return (request[0] == 'B' && matchBuilding(room, request[1])) ||
-    //        (request[0] == 'F' && matchFloor(room, request[1], request[3])) ||
-    //        (request[0] == 'R' && matchRoom(room, request.substr(1, 4)));
+    return (request[0] == 'B' && matchBuilding(room, request[1])) ||
+           (request[0] == 'F' && matchFloor(room, request[1], request[3])) ||
+           (request[0] == 'R' && matchRoom(room, request.substr(1, 4)));
 }
 
 /*---------- メイン関数 ----------*/
@@ -147,31 +149,63 @@ int main() {
 
     room_stream.close();
 
-    // 寮生希望一覧を読み込み
-    vector<Student> students;
+    // 部屋をシャッフル
+    random_device rnd;
+    mt19937 mt(rnd());
+    shuffle(rooms.begin(), rooms.end(), mt);
+
+    // 住人
+    vector<Resident> residents;
     ifstream student_stream("students.csv");
 
+    for (auto room : rooms)
+        residents.push_back(Resident(room, { }));
+
+    int i = 0;
+
+    // 寮生希望一覧を読み込み
     getline(student_stream, line);
     while (getline(student_stream, line)) {
         vector<string> strs = split(line, ',');
 
-        // 寮生の評価関数を作成
-        students.push_back(Student(strs[0], strs[1], [=](Room room) -> int {
-            return 0;
+        // 満足度の評価関数を作成
+        Student student = Student(strs[0], strs[1], [=](Room room) -> int {
             int satis_value = 0;
 
             // 第1希望～第5希望
             for (int i = 4; i >= 0; i--) {
-                if (matchRequest(room, strs[i + 3]))
+                if (matchRequest(room, strs[i + 5]))
                     satis_value = 5 - i;
             }
 
+            // その他希望
+            for (int i = 0; i < 9; i++) {
+                if (strs[i + 10] != "" && room.infos[i])
+                    satis_value += stoi(strs[i + 10]);
+            }
+
+            // 以上
+            if (strs[19] != "" && room.number[1] >= stoi(strs[19]))
+                satis_value += 1;
+
+            // 以下
+            if (strs[20] != "" && room.number[1] <= stoi(strs[20]))
+                satis_value += 1;
+
+            // 除外
+            if (matchRequest(room, strs[21]))
+                satis_value -= 1;
+
             // 確定
-            if (!matchRequest(room, strs[2]))
-                satis_value -= 1000;
+            if (strs[4] != "") {
+                if (matchRequest(room, strs[4]))
+                    return 0;
+                else
+                    satis_value -= 4000;
+            }
 
             // 学年
-            switch (strs[1][1]) {
+            switch (strs[0][1]) {
                 case '5':
                 case '6':
                 case '7':
@@ -191,46 +225,38 @@ int main() {
             }
 
             // 人数
-            if (room.people != stoi(strs[8]))
-                satis_value -= 1000;
-
-            // その他希望
-            for (int i = 0; i < 9; i++) {
-                if (strs[i + 9] != "" && room.infos[i])
-                    satis_value += stoi(strs[i + 9]);
-            }
-
-            // 以上
-            if (strs[18] != "" && room.number[1] >= stoi(strs[18]))
-                satis_value += 1;
-
-            // 以下
-            if (strs[19] != "" && room.number[1] <= stoi(strs[19]))
-                satis_value += 1;
-
-            // 除外
-            if (matchRequest(room, strs[20]))
-                satis_value -= 1;
+            if (room.people != stoi(strs[2]))
+                satis_value -= 2000;
 
             return satis_value;
-        }));
+        });
+
+        // ペア指定があったら同じ部屋に
+        bool found = false;
+
+        if (strs[3] != "") {
+            for (auto& resident : residents) {
+                for (auto student : resident.students) {
+                    if (strs[3] == student.number) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    resident.students.push_back(student);
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            residents[i].students.push_back(student);
+            i++;
+        }
     }
 
     student_stream.close();
-
-    // 部屋をシャッフル
-    random_device rnd;
-    mt19937 mt(rnd());
-    shuffle(rooms.begin(), rooms.end(), mt);
-
-    // 住人
-    vector<Resident> residents;
-
-    for (auto room : rooms)
-        residents.push_back(Resident(room, Student("00000", "", [](Room room) { return 0; })));
-
-    for (int i = 0; i < students.size(); i++)
-        residents[i].student = students[i];
 
     sort(residents.begin(), residents.end());
 
@@ -249,20 +275,25 @@ int main() {
         int j = dist(mt);
 
         int src_satis = residents[i].satis() + residents[j].satis();
-        int dst_satis = residents[i].student.satis(residents[j].room) + residents[j].student.satis(residents[i].room);
+        swap(residents[i].students, residents[j].students);
+        int dst_satis = residents[i].satis() + residents[j].satis();
 
-        if (dst_satis >= src_satis) {
+        if (dst_satis >= src_satis)
             satis_sum += dst_satis - src_satis;
-            swap(residents[i].student, residents[j].student);
-        }
+        else
+            swap(residents[i].students, residents[j].students);
 
         if (dst_satis > src_satis)
             cout << "満足度 : " << satis_sum << endl;
     }
 
     cout << endl;
-    for (auto resident : residents)
-        cout << resident.room.number << "号室：" << resident.student.number << " (" << resident.satis() << ")" << endl;
+    for (auto resident : residents) {
+        cout << resident.room.number << "号室 : ";
+        for (auto student : resident.students)
+            cout << student.number << " (" << student.satis(resident.room) << "), ";
+        cout << endl;
+    }
 
     return 0;
 }
